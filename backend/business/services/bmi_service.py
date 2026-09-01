@@ -4,7 +4,7 @@ def _to_meters(height_value: float, height_unit: str) -> float:
     """Converts height to meters."""
     if height_unit.lower() == 'cm':
         return height_value / 100.0
-    elif height_unit.lower() in ['ft', 'feet']: # Assuming 'ft' is used for feet
+    elif height_unit.lower() in ['ft', 'feet']:
         # 1 foot = 0.3048 meters
         return height_value * 0.3048
     elif height_unit.lower() in ['in', 'inches']:
@@ -23,8 +23,19 @@ def _to_kilograms(weight_value: float, weight_unit: str) -> float:
     else:
         raise ValueError(f"Unsupported weight unit: {weight_unit}")
 
-def calculate_bmi(height_value, height_unit, weight_value, weight_unit) -> float:
-    """Calculates BMI after converting inputs to meters and kilograms."""
+def get_bmi_category(bmi: float) -> str:
+    """Determines the BMI category based on standard adult classifications."""
+    if bmi < 18.5:
+        return "Underweight"
+    elif 18.5 <= bmi < 25:
+        return "Normal Weight"
+    elif 25 <= bmi < 30:
+        return "Overweight"
+    else: # bmi >= 30
+        return "Obesity"
+
+def calculate_bmi(height_value, height_unit, weight_value, weight_unit) -> dict:
+    """Calculates BMI after converting inputs to meters and kilograms and determines the category."""
     
     # 1. Validation
     if height_value is None or height_unit is None or weight_value is None or weight_unit is None:
@@ -55,8 +66,13 @@ def calculate_bmi(height_value, height_unit, weight_value, weight_unit) -> float
         raise ValueError(f"Conversion error: {e}")
 
     # 3. Calculation (BMI = weight / height^2)
-    # Height is already validated to be > 0, so division by zero is prevented
     bmi = weight_kg / (height_m ** 2)
 
     # 4. Rounding
-    return round(bmi, 2)
+    rounded_bmi = round(bmi, 2)
+
+    # 5. Category Determination
+    category = get_bmi_category(rounded_bmi)
+
+    # 6. Return BMI and Category
+    return {"bmi": rounded_bmi, "category": category}
