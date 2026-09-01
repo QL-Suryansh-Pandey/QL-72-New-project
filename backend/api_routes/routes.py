@@ -1,5 +1,13 @@
 from flask import Blueprint, jsonify, request
+from pydantic import BaseModel, ValidationError, Field
 from backend.business.services.bmi_service import calculate_bmi
+
+# 4. Define the API request schema using Pydantic
+class BMIRequest(BaseModel):
+    height: float = Field(..., description="Height value")
+    height_unit: str = Field(..., description="Height unit (e.g., m, cm, ft)")
+    weight: float = Field(..., description="Weight value")
+    weight_unit: str = Field(..., description="Weight unit (e.g., kg, lbs)")
 
 # Define the main blueprint for API routes
 api_bp = Blueprint('api', __name__)
@@ -41,16 +49,26 @@ def calculate_bmi_route():
     """Calculates BMI and returns the category."""
     data = request.get_json()
     
-    # Assuming request body contains: height_value, height_unit, weight_value, weight_unit
+    # 6a. Validate the incoming request payload using the Pydantic schema.
+    try:
+        validated_data = BMIRequest(**data)
+    except ValidationError as e:
+        # Handle Pydantic validation errors (missing fields, wrong types)
+        error_messages = [f"Field {err['loc'][0]}: {err['msg']}" for err in e.errors()]
+        return jsonify({"status": "error", "message": "Invalid input format: " + ", ".join(error_messages)}), 400
+
+    # 6b, 6c. Extract values and call the BMI service (which handles conversion and domain validation)
     try:
         bmi_result = calculate_bmi(
-            data.get('height_value'), 
-            data.get('height_unit'), 
-            data.get('weight_value'), 
-            data.get('weight_unit')
+            height_value=validated_data.height, 
+            height_unit=validated_data.height_unit, 
+            weight_value=validated_data.weight, 
+            weight_unit=validated_data.weight_unit
         )
+        # 6f. Return the result (BMI and category) as JSON with HTTP 200 OK status.
         return jsonify(bmi_result), 200
     except ValueError as e:
+        # Handle validation errors from the service (e.g., unsupported units, zero values)
         return jsonify({"status": "error", "message": str(e)}), 400
 
 def register_routes(app):
