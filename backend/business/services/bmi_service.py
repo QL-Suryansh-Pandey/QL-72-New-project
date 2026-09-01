@@ -1,4 +1,8 @@
 import math
+from datetime import datetime
+from backend.database import insert_bmi_record
+
+# --- Conversion Helpers ---
 
 def _to_meters(height_value: float, height_unit: str) -> float:
     """Converts height to meters."""
@@ -23,6 +27,7 @@ def _to_kilograms(weight_value: float, weight_unit: str) -> float:
     else:
         raise ValueError(f"Unsupported weight unit: {weight_unit}")
 
+# --- BMI Logic ---
 def get_bmi_category(bmi: float) -> str:
     """Determines the BMI category based on standard adult classifications."""
     if bmi < 18.5:
@@ -76,3 +81,47 @@ def calculate_bmi(height_value, height_unit, weight_value, weight_unit) -> dict:
 
     # 6. Return BMI and Category
     return {"bmi": rounded_bmi, "category": category}
+
+# --- New Service Function for Persistence ---
+
+def calculate_and_save_bmi(user_id: int, height_value: float, height_unit: str, weight_value: float, weight_unit: str) -> dict:
+    """
+    Calculates BMI, saves the result to the database, and returns the result.
+    Handles both calculation and persistence logic.
+    """
+    
+    # 1. Calculate BMI
+    bmi_result_dict = calculate_bmi(
+        height_value=height_value, 
+        height_unit=height_unit, 
+        weight_value=weight_value, 
+        weight_unit=weight_unit
+    )
+    
+    bmi = bmi_result_dict['bmi']
+    category = bmi_result_dict['category']
+
+    # 2. Prepare data for persistence
+    record_data = {
+        'user_id': user_id,
+        'height': height_value,
+        'height_unit': height_unit,
+        'weight': weight_value,
+        'weight_unit': weight_unit,
+        'calculated_bmi': bmi,
+        'bmi_category': category,
+        'creation_timestamp': datetime.utcnow()
+    }
+
+    # 3. Persist data
+    try:
+        success = insert_bmi_record(record_data)
+        if not success:
+            # Raise a specific error if database insertion fails
+            raise ConnectionError("Failed to persist BMI record to database.")
+    except Exception as e:
+        # Catch any other unexpected failure during persistence
+        raise RuntimeError(f"Unexpected error during BMI persistence: {e}")
+
+    # 4. Return the successful calculation result
+    return bmi_result_dict

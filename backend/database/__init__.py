@@ -1,6 +1,7 @@
 import mysql.connector
 from mysql.connector import Error
 import os
+from datetime import datetime
 
 # Configuration constants (read from environment variables)
 DB_HOST = os.environ.get('MYSQL_HOST')
@@ -23,7 +24,6 @@ def get_db_connection():
             password=DB_PASSWORD,
             # We connect without specifying a database initially for setup/connection testing
             # or we specify a known database if we are past the setup phase.
-            # For initial connection test, we might connect to the server instance.
             # For this implementation, we rely on the DB being created by the setup script.
             database=os.environ.get('MYSQL_DATABASE')
         )
@@ -55,3 +55,50 @@ class DatabaseConnection:
 # Global connection utility (optional, but useful for centralized access)
 # This is the primary reusable pattern required.
 DB_CONTEXT = DatabaseConnection()
+
+def insert_bmi_record(record_data: dict) -> bool:
+    """
+    Inserts a new BMIRecord into the database using parameterized queries.
+
+    Args:
+        record_data: Dictionary containing all record fields.
+
+    Returns:
+        True if insertion was successful, False otherwise.
+    """
+    sql = """
+    INSERT INTO bmi_records (
+        user_id, height, height_unit, weight, weight_unit, 
+        calculated_bmi, bmi_category, creation_timestamp
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    
+    try:
+        with DatabaseConnection() as connection:
+            if not connection:
+                print("[Database Error] Cannot connect for insertion.")
+                return False
+            cursor = connection.cursor()
+            
+            # Data preparation: using parameters for security
+            values = (
+                record_data['user_id'],
+                record_data['height'],
+                record_data['height_unit'],
+                record_data['weight'],
+                record_data['weight_unit'],
+                record_data['calculated_bmi'],
+                record_data['bmi_category'],
+                record_data['creation_timestamp']
+            )
+            
+            cursor.execute(sql, values)
+            connection.commit()
+            print(f"Successfully inserted BMI record for User ID: {record_data['user_id']}")
+            return True
+    except ConnectionError as e:
+        print(f"[Database Error] Connection failed during insertion: {e}")
+        return False
+    except Exception as e:
+        print(f"[Database Error] Insertion failed: {e}")
+        return False

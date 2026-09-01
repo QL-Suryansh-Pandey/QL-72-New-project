@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from pydantic import BaseModel, ValidationError, Field
-from backend.business.services.bmi_service import calculate_bmi
+from backend.business.services.bmi_service import calculate_and_save_bmi
 
 # 4. Define the API request schema using Pydantic
 class BMIRequest(BaseModel):
@@ -46,10 +46,10 @@ def database_status_check():
 
 @api_bp.route('/calculate-bmi', methods=['POST'])
 def calculate_bmi_route():
-    """Calculates BMI and returns the category."""
+    """Calculates BMI, saves the result, and returns the category."""
     data = request.get_json()
     
-    # 6a. Validate the incoming request payload using the Pydantic schema.
+    # 1. Validate the incoming request payload using the Pydantic schema.
     try:
         validated_data = BMIRequest(**data)
     except ValidationError as e:
@@ -57,19 +57,33 @@ def calculate_bmi_route():
         error_messages = [f"Field {err['loc'][0]}: {err['msg']}" for err in e.errors()]
         return jsonify({"status": "error", "message": "Invalid input format: " + ", ".join(error_messages)}), 400
 
-    # 6b, 6c. Extract values and call the BMI service (which handles conversion and domain validation)
+    # 2. Extract User ID (Mocked via header for demonstration)
+    user_id_str = request.headers.get('X-User-ID')
     try:
-        bmi_result = calculate_bmi(
+        user_id = int(user_id_str)
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Authentication required: Missing or invalid User ID."}), 401
+
+    # 3. Call the combined BMI/Persistence service
+    try:
+        bmi_result = calculate_and_save_bmi(
+            user_id=user_id,
             height_value=validated_data.height, 
             height_unit=validated_data.height_unit, 
             weight_value=validated_data.weight, 
             weight_unit=validated_data.weight_unit
         )
-        # 6f. Return the result (BMI and category) as JSON with HTTP 200 OK status.
+        # 4. Return the result (BMI and category) as JSON with HTTP 200 OK status.
         return jsonify(bmi_result), 200
     except ValueError as e:
         # Handle validation errors from the service (e.g., unsupported units, zero values)
         return jsonify({"status": "error", "message": str(e)}), 400
+    except ConnectionError as e:
+        # Handle database connection/persistence failure
+        return jsonify({"status": "error", "message": f"Persistence error: {e}"}), 503
+    except RuntimeError as e:
+        # Handle other unexpected service errors
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 def register_routes(app):
     """Registers all API blueprints with the Flask application."""
