@@ -1,1 +1,5 @@
 Flask
+mysql-connector-python
+python-dotenv
+passlib
+pytest
