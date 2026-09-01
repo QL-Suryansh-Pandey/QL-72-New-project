@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from backend.database import __init__ as db_module
+from backend.business.services.bmi_service import calculate_bmi
 
 # Define the main blueprint for API routes
 api_bp = Blueprint('api', __name__)
@@ -13,6 +13,8 @@ def health_check():
 def database_status_check():
     """Verifies database connection and lists accessible tables."""
     try:
+        # Assuming db_module is imported correctly and available
+        from backend.database import __init__ as db_module
         # Use the reusable context manager to get a connection
         with db_module.DB_CONTEXT as connection:
             if connection:
@@ -33,6 +35,23 @@ def database_status_check():
     except Exception as e:
         # Handle other unexpected database errors (e.g., permissions, query syntax)
         return jsonify({"status": "error", "message": f"An unexpected database error occurred: {e}"}), 500
+
+@api_bp.route('/calculate-bmi', methods=['POST'])
+def calculate_bmi_route():
+    """Calculates BMI and returns the category."""
+    data = request.get_json()
+    
+    # Assuming request body contains: height_value, height_unit, weight_value, weight_unit
+    try:
+        bmi_result = calculate_bmi(
+            data.get('height_value'), 
+            data.get('height_unit'), 
+            data.get('weight_value'), 
+            data.get('weight_unit')
+        )
+        return jsonify(bmi_result), 200
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 def register_routes(app):
     """Registers all API blueprints with the Flask application."""
