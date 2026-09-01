@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
+from backend.database import __init__ as db_module
 
 # Define the main blueprint for API routes
 api_bp = Blueprint('api', __name__)
@@ -8,6 +9,32 @@ def health_check():
     """Health check endpoint."""
     return jsonify({"status": "ok", "message": "Backend is running successfully"}), 200
 
+@api_bp.route('/db/status', methods=['GET'])
+def database_status_check():
+    """Verifies database connection and lists accessible tables."""
+    try:
+        # Use the reusable context manager to get a connection
+        with db_module.DB_CONTEXT as connection:
+            if connection:
+                cursor = connection.cursor()
+                cursor.execute("SHOW TABLES")
+                tables = [table[0] for table in cursor.fetchall()]
+                
+                return jsonify({
+                    "status": "ok",
+                    "message": "Database connection verified successfully.",
+                    "tables": tables
+                }), 200
+            else:
+                return jsonify({"status": "error", "message": "Could not establish database connection."}), 503
+    except ConnectionError as e:
+        # Handle connection failure gracefully
+        return jsonify({"status": "error", "message": f"Database connection failed: {e}"}), 500
+    except Exception as e:
+        # Handle other unexpected database errors (e.g., permissions, query syntax)
+        return jsonify({"status": "error", "message": f"An unexpected database error occurred: {e}"}), 500
+
 def register_routes(app):
     """Registers all API blueprints with the Flask application."""
+    # Note: We use the blueprint name 'api' and url_prefix '/' to match the original structure.
     app.register_blueprint(api_bp, url_prefix='/')

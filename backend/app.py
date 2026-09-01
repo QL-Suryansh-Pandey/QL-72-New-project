@@ -1,13 +1,10 @@
+# NOTE: This file is generally superseded by the factory pattern when using Flask.
+# We keep it minimal for basic execution if not using the factory pattern directly.
 from flask import Flask, jsonify
+from backend.app_factory import create_app
 
-app = Flask(__name__)
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint."""
-    return jsonify({"status": "ok", "message": "Backend is running successfully"}), 200
+app = create_app()
 
 if __name__ == '__main__':
-    # Note: When using 'flask run', this block is usually bypassed,
-    # but it's useful for local testing.
+    # Use the factory created app instance
     app.run(debug=True)
