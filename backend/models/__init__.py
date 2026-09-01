@@ -26,3 +26,23 @@ class BMIRecord:
             "category": self.bmi_category,
             "calculation_date": self.calculation_date.isoformat()
         }
+
+class User:
+    """Represents a registered user in the system."""
+    def __init__(self, user_id: int, name: str, email: str, age: int, gender: str, hashed_password: str):
+        self.user_id = user_id
+        self.name = name
+        self.email = email
+        self.age = age
+        self.gender = gender
+        self.hashed_password = hashed_password
+
+    def to_dict(self):
+        """Returns a dictionary representation, excluding sensitive data."""
+        return {
+            "user_id": self.user_id,
+            "name": self.name,
+            "email": self.email,
+            "age": self.age,
+            "gender": self.gender,
+        }
